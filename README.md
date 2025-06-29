@@ -50,8 +50,10 @@ kyber-secure-demo/
 go mod tidy
 
 ### 2.執行主程式CLI
-go run main.go --level=768 --secure=true
---level 可設定為 512、768 或 1024
+go run main.go --level=768 --secure=true  
+
+--level 可設定為 512、768 或 1024  
+
 --secure 設為 true 使用 Secure 解封裝，false 使用普通解封裝
 
 ### 3. 執行單元測試
