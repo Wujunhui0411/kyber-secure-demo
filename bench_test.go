@@ -2,27 +2,40 @@ package main
 
 import (
     "testing"
-    crystalskyber "github.com/kudelskisecurity/crystals-go/kyber"
+
+    "github.com/cloudflare/circl/pke/kyber"
     "kyber-secure-demo/kyber"
 )
 
 func benchByLevel(b *testing.B, level string) {
-    var k crystalskyber.Kyber
+    var scheme *kyber.Scheme
     switch level {
     case "512":
-        k = crystalskyber.NewKyber512()
+        s := kyber.Kyber512
+        scheme = &s
     case "768":
-        k = crystalskyber.NewKyber768()
+        s := kyber.Kyber768
+        scheme = &s
     case "1024":
-        k = crystalskyber.NewKyber1024()
+        s := kyber.Kyber1024
+        scheme = &s
     }
 
-    pk, sk := k.KeyGen(nil)
-    c, _ := k.Encaps(pk, nil)
+    pk, sk, err := scheme.GenerateKeyPair()
+    if err != nil {
+        b.Fatal(err)
+    }
+    ct, _, err := scheme.Encapsulate(pk)
+    if err != nil {
+        b.Fatal(err)
+    }
 
     b.ResetTimer()
     for i := 0; i < b.N; i++ {
-        kyber.DecapsSecureExt(k, sk, c)
+        _, err := kyber.DecapsSecureExt(scheme, sk, ct)
+        if err != nil {
+            b.Fatal(err)
+        }
     }
 }
 
