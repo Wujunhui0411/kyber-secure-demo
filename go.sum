@@ -1,4 +1,2 @@
-github.com/kudelskisecurity/crystals-go v0.0.0-20240116-0f4cabe3e6e9 h1:ek3JGp3sHg3EqOpKRvDOrQBJykjQmRRIf3lxBvB9N20=
-github.com/kudelskisecurity/crystals-go v0.0.0-20240116-0f4cabe3e6e9/go.mod h1:ShUN3oOQHP1mXqukNB6EuhrBbOYvOHvFwYutpgk+Y1Q=
-golang.org/x/crypto v0.11.0 h1:eK9lGnA7A7PbA4rU+CWV4n9JmdJ+zW3BWJvYQQ0hG4Y=
-golang.org/x/crypto v0.11.0/go.mod h1:g46tKvb5YknD3+FVdUATGW6aCN/NkpQ1TlhJ7p4vN9A=
+github.com/cloudflare/circl v0.11.1 h1:Yb5t0cFi/KF+9kJzSOoe+89ve9b0ysnh7Q6x7zx2eGw8=
+github.com/cloudflare/circl v0.11.1/go.mod h1:9IXeg32FiUtg2MWDFzyqmrAyGnoQe4TXQ9CevqpIqWA=
