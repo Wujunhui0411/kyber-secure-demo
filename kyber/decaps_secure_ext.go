@@ -1,7 +1,7 @@
 package kyber
 
 import (
-    crystalskyber "github.com/kudelskisecurity/crystals-go/kyber"
+    crystalskyber "github.com/cloudflare/circl/pke/kyber"
 )
 
 // DecapsSecureExt 承接原本的 Secure 解封裝
