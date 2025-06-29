@@ -1,8 +1,7 @@
-module kyber-secure-demo
+module example.com/kybersecure
 
 go 1.20
 
 require (
-    github.com/kudelskisecurity/crystals-go v0.0.0-20240116 
-    golang.org/x/crypto v0.11.0
+    github.com/cloudflare/circl v0.11.1 
 )
