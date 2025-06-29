@@ -1,12 +1,11 @@
 package main
 
 import (
-    "crypto/rand"
     "flag"
     "fmt"
     "time"
 
-    "github.com/kudelskisecurity/crystals-go/kyber"
+    "github.com/cloudflare/circl/pke/kyber"
     "kyber-secure-demo/kyber"
 )
 
@@ -15,34 +14,53 @@ func main() {
     secure := flag.Bool("secure", true, "use Secure Decaps or plain Decaps")
     flag.Parse()
 
-    var k crystalskyber.Kyber
+    var scheme *kyber.Scheme
     switch *level {
     case "512":
-        k = crystalskyber.NewKyber512()
+        s := kyber.Kyber512
+        scheme = &s
     case "768":
-        k = crystalskyber.NewKyber768()
+        s := kyber.Kyber768
+        scheme = &s
     case "1024":
-        k = crystalskyber.NewKyber1024()
+        s := kyber.Kyber1024
+        scheme = &s
     default:
         fmt.Println("invalid level")
         return
     }
 
     // keygen
-    pk, sk := k.KeyGen(nil)
+    pk, sk, err := scheme.GenerateKeyPair()
+    if err != nil {
+        fmt.Println("KeyGen error:", err)
+        return
+    }
     fmt.Printf("Generated keys for Kyber%s\n", *level)
 
     // encaps
-    c, ss1 := k.Encaps(pk, nil)
+    c, ss1, err := scheme.Encapsulate(pk)
+    if err != nil {
+        fmt.Println("Encaps error:", err)
+        return
+    }
     fmt.Printf("Encapsulated shared secret: %x…\n", ss1[:8])
 
     // decaps
     start := time.Now()
     var ss2 []byte
     if *secure {
-        ss2 = kyber.DecapsSecureExt(k, sk, c)
+        ss2, err = kyber.DecapsSecureExt(scheme, sk, c)
+        if err != nil {
+            fmt.Println("Secure Decaps error:", err)
+            return
+        }
     } else {
-        ss2 = k.Decaps(sk, c)
+        ss2, err = scheme.Decapsulate(sk, c)
+        if err != nil {
+            fmt.Println("Decaps error:", err)
+            return
+        }
     }
     took := time.Since(start)
 
