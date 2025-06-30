@@ -47,12 +47,15 @@ kyber-secure-demo/
 ## 如何執行
 
 ### 1. 下載相依套件
-go mod tidy
+go mod tidy  
 
-### 2. 執行Benchmark測試
+### 2. 單元測試
+go test ./kyber
+
+### 3. 執行Benchmark測試
 go test -bench=BenchmarkDecapsSecure ./kyber
 
-### 3. 執行主程式
+### 4. 執行主程式
 go run main.go --level=768 --secure=true  
 
 go run main.go --level=768 --secure=false
