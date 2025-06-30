@@ -34,16 +34,6 @@ kyber-secure-demo/
 - CLI 工具：可選擇不同安全等級與是否使用 Secure 解封裝，並測量執行時間
 - Benchmark 測試：評估 Secure 解封裝與普通解封裝在不同安全等級下的效能差異
 
-## 新增功能與測試
-
-- **decaps_secure_ext.go / decaps_secure_ext_test.go**  
-  封裝了一套 Secure Decapsulation 擴充功能，用於增強對故障攻擊與注入攻擊的防護。  
-  對應的測試確保 Secure Decapsulation 的正確性與與原始解封結果一致。
-
-- **bench_test.go**  
-  針對 Kyber512、768、1024 三個安全等級，實作有無 Secure 解封裝的效能基準測試。  
-  可用以量化安全防護對效能的影響，為後續優化提供依據。
-
 ## 如何執行
 
 ### 1. 下載相依套件
