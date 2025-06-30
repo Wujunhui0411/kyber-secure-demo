@@ -17,9 +17,9 @@ kyber-secure-demo/
 
 │   ├── decaps_secure_ext.go         // 包裝 crystals-go 的 secure 解封裝  
 
-│   └── decaps_secure_ext_test.go    // 相關測試  
+│   ├── decaps_secure_ext_test.go    // 相關測試  
 
-└── bench_test.go                    // benchmark 測試
+│   └── bench_test.go                // benchmark 測試
 
 
 ## 專案介紹
@@ -49,15 +49,10 @@ kyber-secure-demo/
 ### 1. 下載相依套件
 go mod tidy
 
-### 2.執行主程式CLI
+### 2. 執行Benchmark測試
+go test -bench=BenchmarkDecapsSecure ./kyber
+
+### 3. 執行主程式
 go run main.go --level=768 --secure=true  
 
---level 可設定為 512、768 或 1024  
-
---secure 設為 true 使用 Secure 解封裝，false 使用普通解封裝
-
-### 3. 執行單元測試
-go test ./kyber
-
-### 4. 執行Benchmark測試
-go test -bench=. -benchmem
+go run main.go --level=768 --secure=false
