@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"time"
-
+        "encoding/binary"
 	"kyber-secure-demo/kyber"
 )
 
