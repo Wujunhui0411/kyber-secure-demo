@@ -56,6 +56,8 @@ go test ./kyber
 go test -bench=BenchmarkDecapsSecure ./kyber
 
 ### 4. 執行主程式
-go run main.go --level=768 --secure=true  
+go run main.go --level=安全等級 --secure=true  
+(安全等級可為512/768/1024)
 
-go run main.go --level=768 --secure=false
+go run main.go --level=安全等級 --secure=false  
+(安全等級可為512/768/1024)
