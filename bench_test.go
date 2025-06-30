@@ -1,44 +1,38 @@
-package main
+package kyber
 
 import (
-    "testing"
-
-    "github.com/cloudflare/circl/pke/kyber"
-    "kyber-secure-demo/kyber"
+	"encoding/binary"
+	"testing"
 )
 
-func benchByLevel(b *testing.B, level string) {
-    var scheme *kyber.Scheme
-    switch level {
-    case "512":
-        s := kyber.Kyber512
-        scheme = &s
-    case "768":
-        s := kyber.Kyber768
-        scheme = &s
-    case "1024":
-        s := kyber.Kyber1024
-        scheme = &s
-    }
+func benchDecaps(b *testing.B, level int, secure bool) {
+	sk := &PrivateKey{}
+	pk := &PublicKey{}
+	a := uint16(Q / 4)
+	c := make([]byte, 32)
+	binary.LittleEndian.PutUint16(c[:2], a)
 
-    pk, sk, err := scheme.GenerateKeyPair()
-    if err != nil {
-        b.Fatal(err)
-    }
-    ct, _, err := scheme.Encapsulate(pk)
-    if err != nil {
-        b.Fatal(err)
-    }
-
-    b.ResetTimer()
-    for i := 0; i < b.N; i++ {
-        _, err := kyber.DecapsSecureExt(scheme, sk, ct)
-        if err != nil {
-            b.Fatal(err)
-        }
-    }
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		DecapsulateExt(c, sk, pk, secure)
+	}
 }
 
-func BenchmarkSecure512(b *testing.B)  { benchByLevel(b, "512") }
-func BenchmarkSecure768(b *testing.B)  { benchByLevel(b, "768") }
-func BenchmarkSecure1024(b *testing.B) { benchByLevel(b, "1024") }
+func BenchmarkDecapsulate_Kyber512_Secure(b *testing.B) {
+	benchDecaps(b, 512, true)
+}
+func BenchmarkDecapsulate_Kyber512_Original(b *testing.B) {
+	benchDecaps(b, 512, false)
+}
+func BenchmarkDecapsulate_Kyber768_Secure(b *testing.B) {
+	benchDecaps(b, 768, true)
+}
+func BenchmarkDecapsulate_Kyber768_Original(b *testing.B) {
+	benchDecaps(b, 768, false)
+}
+func BenchmarkDecapsulate_Kyber1024_Secure(b *testing.B) {
+	benchDecaps(b, 1024, true)
+}
+func BenchmarkDecapsulate_Kyber1024_Original(b *testing.B) {
+	benchDecaps(b, 1024, false)
+}
