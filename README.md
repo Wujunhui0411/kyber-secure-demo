@@ -53,7 +53,7 @@ kyber-secure-demo/
 * 入口：`DecapsulateSecure(ct, sk, pk)`（或使用 `DecapsulateExt(..., secure=true)`）
 * 異常（解碼故障 / 雜湊不一致 / 原生 decap 出錯）時：
 
-  * **不拋錯**（避免 error oracle）
+  * **不報錯**（避免 error oracle）
   * **回傳 32B fallback key**（亂數），由上層協議自行驗證失敗
 
 ### 故障偵測（demo 路徑）
@@ -65,16 +65,6 @@ kyber-secure-demo/
 ### 雙向雜湊一致性
 
 * 比對 `hash(c‖c')` 與 `hash(c'‖c)`，避免只改寫單向比對就繞過檢查
-
-#### Secure vs Original（行為對照）
-
-| 模式                       | 正常輸出            | 異常（故障/破壞密文）                         | 對外錯誤             | 典型輸出長度   |
-| ------------------------ | --------------- | ----------------------------------- | ---------------- | -------- |
-| `secure=false`（Original） | 與 Encaps 一致     | 由底層而定（可能錯誤或不一致）                     | 可能拋出             | 32 B     |
-| `secure=true`（Secure）    | 與 Encaps 一致     | **不拋錯**、回 **fallback key**          | **不拋錯**          | **32 B** |
-| demo 路徑（教學）              | 1 個 bit（1 B 包裝） | 觸發 `ErrDecodeFault` → fallback 32 B | 不拋錯（由 Secure 包裝） | 1 / 32 B |
-
-> 註：正式整合請以 **真實 KEM 路徑（CIRCL）** 為主；**demo 路徑**僅供可控故障模擬與教學。
 
 ---
 
@@ -141,7 +131,7 @@ func main() {
 }
 ```
 
-> 備註：`DecapsulateSecure` 會在偵測到異常時**不丟錯**，改回 **32B fallback key**；上層協議（AEAD/KDF/AEAD）應據此驗證是否有效。
+> 備註：`DecapsulateSecure` 會在偵測到異常時**不報錯**，改回 **32B fallback key**；上層協議（AEAD/KDF/AEAD）應據此驗證是否有效。
 
 ---
 
@@ -198,7 +188,7 @@ go test -tags fault ./kyber -v
 
   * 正常：`a=Q/4` → 1B bit
   * 故障：`a=833` + 跳過 `+Q/2` → **fallback key（32B）**，且 ≠ 正常輸出
-* 其他（如 `Test_DecapsSecure_SkipDecodeFault` / `Test_DecapsSecure_SkipCiphertextCheck`）：偵測異常皆**不拋錯**、改走 fallback
+* 其他（如 `Test_DecapsSecure_SkipDecodeFault` / `Test_DecapsSecure_SkipCiphertextCheck`）：偵測異常皆**不報錯**、改走 fallback
 
 ---
 
@@ -241,10 +231,10 @@ go test -bench=BenchmarkDecapsSecure -benchmem ./kyber
 
 1. `poly_to_msgSecure`（demo 路徑）能偵測「跳過 `+Q/2`」異常（測試用 build tag 可注入）
 2. **雙向雜湊**檢查 ciphertext 一致性，避免單向比對被繞過
-3. **fallback key**：偵測到異常時**不拋錯**、回 32B 隨機金鑰；上層協議（AEAD/KDF）自然驗證失敗，但不暴露內部細節
+3. **fallback key**：偵測到異常時**不報錯**、回 32B 隨機金鑰；上層協議（AEAD/KDF）自然驗證失敗，但不暴露內部細節
 
 **真實 KEM 路徑（CIRCL）：**
-無法直接在函式庫內「跳過 `+Q/2`」，因此以**破壞 ciphertext** 誘發異常，驗證 `secure=true` 的韌性（不拋錯 → fallback）。
+無法直接在函式庫內「跳過 `+Q/2`」，因此以**破壞 ciphertext** 誘發異常，驗證 `secure=true` 的韌性（不報錯 → fallback）。
 
 ---
 
