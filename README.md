@@ -1,6 +1,6 @@
 # kyber-secure-demo
 
-Secure **Kyber KEM** demo in Go — with **CLI**, **tests**, **fault‑injection hardening**, and **benchmarks**.
+Secure **Kyber KEM** demo in Go — with **CLI**, **tests**, **fault-injection hardening**, and **benchmarks**.
 
 > 本專案示範如何在 Go 中使用 **Cloudflare CIRCL** 的 Kyber（512/768/1024），並加入 **故障注入防禦**（偵測 + fallback）。
 > 另提供以 **build tag** 觸發的「**軟體故障模擬**」機制，方便在測試環境重現「跳過 `+Q/2`」的情境。
@@ -13,11 +13,10 @@ Secure **Kyber KEM** demo in Go — with **CLI**, **tests**, **fault‑injection
 * [特色與功能](#特色與功能)
 * [安裝與相依性](#安裝與相依性)
 * [快速開始（CLI）](#快速開始cli)
-* [測試（一般--故障模擬）](#測試一般--故障模擬)
+* [測試（一般 / 故障模擬）](#測試一般--故障模擬)
 * [Build Tags 說明](#build-tags-說明)
 * [Benchmark](#benchmark)
-* [安全模型（威脅與防護）](#安全模型威脅與防禦)
-* [常見問題（FAQ）](#常見問題faq)
+* [安全模型（威脅與防護）](#安全模型威脅與防護)
 * [指令速查](#指令速查)
 
 ---
@@ -51,7 +50,7 @@ kyber-secure-demo/
 
 ### Secure 解封裝（安全模式）
 
-* 入口：`DecapsulateExt(ct, sk, pk, secure bool)`
+* 入口：`DecapsulateSecure(ct, sk, pk)`（或使用 `DecapsulateExt(..., secure=true)`）
 * 異常（解碼故障 / 雜湊不一致 / 原生 decap 出錯）時：
 
   * **不拋錯**（避免 error oracle）
@@ -92,6 +91,57 @@ go mod tidy
 # 如需指定 CIRCL 版本：
 # go get github.com/cloudflare/circl@latest && go mod tidy
 ```
+
+---
+
+## 安裝與引用（Import）
+
+**安裝套件**（建議固定版本標籤）：
+
+```bash
+# 抓最新版
+go get github.com/Wujunhui0411/kyber-secure-demo@latest
+# 或抓特定版本（例如 v0.1.0）
+# go get github.com/Wujunhui0411/kyber-secure-demo@v0.1.0
+```
+
+**匯入路徑**（與 go.mod 的 module 路徑一致）：
+
+```go
+import "github.com/Wujunhui0411/kyber-secure-demo/kyber"
+```
+
+**最小使用範例**：
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+
+    "github.com/Wujunhui0411/kyber-secure-demo/kyber"
+)
+
+func main() {
+    // 1) 產生金鑰（Kyber1024）
+    pk, sk, err := kyber.KeyGen(1024)
+    if err != nil { log.Fatal(err) }
+
+    // 2) 封裝（sender）
+    ct, ssEnc, err := kyber.Encapsulate(pk)
+    if err != nil { log.Fatal(err) }
+
+    // 3) 安全解封裝（receiver）
+    ssDec, err := kyber.DecapsulateSecure(ct, sk, pk)
+    if err != nil { log.Fatal(err) }
+
+    fmt.Println("ciphertext bytes:", len(ct))
+    fmt.Println("shared key match:", string(ssEnc) == string(ssDec))
+}
+```
+
+> 備註：`DecapsulateSecure` 會在偵測到異常時**不丟錯**，改回 **32B fallback key**；上層協議（AEAD/KDF/AEAD）應據此驗證是否有效。
 
 ---
 
@@ -182,7 +232,7 @@ go test -bench=BenchmarkDecapsSecure -benchmem ./kyber
 
 ---
 
-## 安全模型（威脅與防禦）
+## 安全模型（威脅與防護）
 
 **攻擊面：**
 針對 **硬體層故障注入**（Fault Injection on Decapsulation），例如在「係數→位元」的四捨五入流程中**跳過 `+Q/2`**。攻擊者可藉由「正確 vs 錯誤輸出」差異蒐集訊號，以推測私鑰（fault/error oracle）。
@@ -195,22 +245,6 @@ go test -bench=BenchmarkDecapsSecure -benchmem ./kyber
 
 **真實 KEM 路徑（CIRCL）：**
 無法直接在函式庫內「跳過 `+Q/2`」，因此以**破壞 ciphertext** 誘發異常，驗證 `secure=true` 的韌性（不拋錯 → fallback）。
-
----
-
-## 常見問題（FAQ）
-
-**Q1. 故障發生時為什麼不要直接回錯？**
-A：因為「有錯/沒錯」本身就是 oracle 訊號。安全做法是回 **fallback key**，讓上層 AEAD/KDF 驗證自然失敗，但不暴露哪一步錯。
-
-**Q2. demo 路徑與真實路徑差在哪？**
-A：
-
-* **真實路徑**：使用 CIRCL 完整 Kyber KEM（KeyGen/Encaps/Decaps）。
-* **demo 路徑**：教學用簡化，從 `ciphertext[:2]` 取 16-bit 係數 `a` 來示範 `+Q/2` 的影響，便於可控的故障模擬與單元測試。
-
-**Q3. 支援哪些 Kyber 等級？**
-A：`512 / 768 / 1024`（對應 CLI `--level`）。
 
 ---
 
