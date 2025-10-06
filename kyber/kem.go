@@ -1,17 +1,17 @@
-// kyber/kem.go
 package kyber
 
 import (
-	"fmt"
+	"crypto/rand"
+	"errors"
 
 	"github.com/cloudflare/circl/kem"
-	kyber1024 "github.com/cloudflare/circl/kem/kyber/kyber1024"
-	kyber512 "github.com/cloudflare/circl/kem/kyber/kyber512"
-	kyber768 "github.com/cloudflare/circl/kem/kyber/kyber768"
+	"github.com/cloudflare/circl/kem/kyber/kyber1024"
+	"github.com/cloudflare/circl/kem/kyber/kyber512"
+	"github.com/cloudflare/circl/kem/kyber/kyber768"
 )
 
-// schemeFromLevel maps 512/768/1024 to CIRCL schemes.
-func schemeFromLevel(level int) (kem.Scheme, error) {
+// 依安全等級取得對應 Scheme
+func getScheme(level int) (kem.Scheme, error) {
 	switch level {
 	case 512:
 		return kyber512.Scheme(), nil
@@ -20,35 +20,49 @@ func schemeFromLevel(level int) (kem.Scheme, error) {
 	case 1024:
 		return kyber1024.Scheme(), nil
 	default:
-		return nil, fmt.Errorf("unsupported Kyber level: %d (use 512/768/1024)", level)
+		return nil, errors.New("unsupported kyber level (use 512/768/1024)")
 	}
 }
 
-// KeyGen generates a real Kyber keypair using CIRCL and wraps it into our types.
-func KeyGen(level int) (*PublicKey, *PrivateKey, error) {
-	s, err := schemeFromLevel(level)
+// 產生金鑰對（回傳序列化後的 pk、sk）
+func KeyGen(level int) (pk, sk []byte, err error) {
+	s, err := getScheme(level)
 	if err != nil {
 		return nil, nil, err
 	}
-	pk, sk, err := s.GenerateKeyPair()
+	pkK, skK, err := s.GenerateKeyPair()
 	if err != nil {
 		return nil, nil, err
 	}
-	return &PublicKey{scheme: s, inner: pk, real: true}, &PrivateKey{scheme: s, inner: sk, real: true}, nil
+	return pkK.Bytes(), skK.Bytes(), nil
 }
 
-// Encapsulate performs KEM encapsulation using the wrapped public key.
-func Encapsulate(pk *PublicKey) (ct, ss []byte, err error) {
-	if pk == nil || pk.inner == nil || pk.scheme == nil {
-		return nil, nil, fmt.Errorf("public key is nil or not initialized; call KeyGen first")
+// 封裝：給定 pk bytes，自動偵測 512/768/1024 並產生 ct、ss
+func Encapsulate(pkBytes []byte) (ct, ss []byte, err error) {
+	for _, s := range []kem.Scheme{kyber512.Scheme(), kyber768.Scheme(), kyber1024.Scheme()} {
+		pk, err := s.UnmarshalBinaryPublicKey(pkBytes)
+		if err == nil {
+			ct, ss, err := s.Encapsulate(pk, rand.Reader)
+			if err != nil {
+				return nil, nil, err
+			}
+			return ct, ss, nil
+		}
 	}
-	return pk.scheme.Encapsulate(pk.inner)
+	return nil, nil, errors.New("invalid kyber public key")
 }
 
-// DecapsulateRaw performs plain decapsulation if a real key is present.
-func DecapsulateRaw(ct []byte, sk *PrivateKey) ([]byte, error) {
-	if sk == nil || sk.inner == nil || sk.scheme == nil {
-		return nil, fmt.Errorf("private key is nil or not initialized; call KeyGen first")
+// 原始解封裝：給定 sk bytes，自動偵測 512/768/1024
+func DecapsulateRaw(ct, skBytes []byte) (ss []byte, err error) {
+	for _, s := range []kem.Scheme{kyber512.Scheme(), kyber768.Scheme(), kyber1024.Scheme()} {
+		sk, err := s.UnmarshalBinaryPrivateKey(skBytes)
+		if err == nil {
+			ss, err := s.Decapsulate(sk, ct)
+			if err != nil {
+				return nil, err
+			}
+			return ss, nil
+		}
 	}
-	return sk.scheme.Decapsulate(sk.inner, ct)
+	return nil, errors.New("invalid kyber secret key")
 }
