@@ -37,6 +37,7 @@ func main() {
 
 	var totalDec time.Duration
 	var lastCT, lastEnc, lastDec []byte
+	var matches, mismatches int
 
 	startAll := time.Now()
 	for i := 0; i < *rounds; i++ {
@@ -57,11 +58,10 @@ func main() {
 		totalDec += time.Since(t0)
 
 		// 5) 驗證 shared key 一致（constant-time）
-		if !constTimeEqual(ssEnc, ssDec) {
-			fmt.Println("shared key 不一致！")
-			fmt.Printf("enc: %s\n", hexHead(ssEnc, 32))
-			fmt.Printf("dec: %s\n", hexHead(ssDec, 32))
-			return
+		if constTimeEqual(ssEnc, ssDec) {
+			matches++
+		} else {
+			mismatches++
 		}
 
 		lastCT, lastEnc, lastDec = ct, ssEnc, ssDec
@@ -69,16 +69,21 @@ func main() {
 	totalAll := time.Since(startAll)
 
 	avg := totalDec.Nanoseconds() / int64(*rounds)
-	fmt.Println("全部完成 ✅")
+	fmt.Println("全部完成")
 	fmt.Printf("總耗時（含封裝等開銷）: %v\n", totalAll)
 	fmt.Printf("僅解封裝總耗時: %v（平均每次: %d ns）\n", totalDec, avg)
 	fmt.Printf("最後一次 Ciphertext 大小: %d bytes\n", len(lastCT))
-	fmt.Printf("Shared key 一致: %v\n", bytes.Equal(lastEnc, lastDec))
+	fmt.Printf("Shared key 一致次數: %d / %d（不一致: %d）\n", matches, *rounds, mismatches)
+	fmt.Printf("最後一次 Shared key (enc==dec): %v\n", bytes.Equal(lastEnc, lastDec))
 	fmt.Printf("Shared key (hex，前 32B): %s\n", hexHead(lastEnc, 32))
+
+	if mismatches > 0 && *secure {
+		fmt.Println("注意：使用 Secure 模式且在故障情境（例如以 -tags fault 執行）時，偵測到異常會回傳隨機 fallback key，導致不一致屬預期行為。")
+	}
 }
 
 // 預熱：跑一輪完整流程，避免初始化雜訊
-func warmup(pk *kyber.PublicKey, sk *kyber.PrivateKey, secure bool) error {
+func warmup(pk, sk []byte, secure bool) error {
 	ct, ssEnc, err := kyber.Encapsulate(pk)
 	if err != nil {
 		return err
@@ -87,7 +92,8 @@ func warmup(pk *kyber.PublicKey, sk *kyber.PrivateKey, secure bool) error {
 	if err != nil {
 		return err
 	}
-	if !constTimeEqual(ssEnc, ssDec) {
+	if !constTimeEqual(ssEnc, ssDec) && !secure {
+		// 非 secure 模式下若不一致代表異常；secure 模式下不一致可能是故障偵測 fallback。
 		return fmt.Errorf("warmup shared key mismatch")
 	}
 	return nil
