@@ -12,6 +12,7 @@ Secure **Kyber KEM** demo in Go — with **CLI**, **tests**, **fault-injection h
 * [專案架構](#專案架構)  
 * [特色與功能](#特色與功能)  
 * [新增 API（重點）](#新增-api重點)  
+* [可用函式參考（API Reference）](#可用函式參考api-reference)  
 * [安裝與相依性](#安裝與相依性)  
 * [快速開始（CLI）](#快速開始cli)  
 * [在其他專案中使用（Import）](#在其他專案中使用import)  
@@ -87,10 +88,62 @@ ssDec, err := kyber.DecapsulateExt(ct, sk, pk, secure)
 err := kyber.DetectDecodeFault(ct)
 ```
 
-**說明**：  
-* `DecapsulateSecure` 在偵測到任何可疑情況時回傳隨機 fallback（32 bytes），避免將錯誤原因透露給攻擊者。  
-* `DecapsulateExt` 是方便的切換入口，適合 benchmark / 比較用途。  
-* 若上層需要直接判斷「真實錯誤 vs fallback」，使用 `DecapsulateRaw`（會回 error）或用 `DetectDecodeFault` 作額外檢查。
+---
+
+## 可用函式參考（API Reference）
+
+> 下列為目前 `package kyber` 中對外可直接使用的函式與變數，包含用途、參數與回傳行為說明。
+
+### `KeyGen(level int) (pk, sk []byte, err error)`
+- **用途**：產生 Kyber 金鑰對（序列化後的 `[]byte`）。
+- **參數**：`level` = `512 | 768 | 1024`。
+- **回傳**：`pk`（公鑰 bytes）、`sk`（私鑰 bytes）、`err`。
+- **注意**：公私鑰皆為序列化格式，方便跨 module / process 傳遞。
+
+---
+
+### `Encapsulate(pk []byte) (ct, ss []byte, err error)`
+- **用途**：使用 `pk` 產生密文 `ct` 與共享秘密 `ss`（sender 端）。
+- **特性**：會嘗試偵測 `pk` 對應的 Kyber 等級（512/768/1024）。
+- **回傳**：`ct`、`ss`、`err`。
+
+---
+
+### `DecapsulateRaw(ct, sk []byte) (ss []byte, err error)`
+- **用途**：原生解封裝（不加任何偵測或 fallback）。
+- **行為**：若解封裝失敗會回傳 `err`（可用於 debug / baseline）。
+- **回傳**：`ss`、`err`。
+
+---
+
+### `DecapsulateSecure(ct, sk, pk []byte) (ss []byte, err error)`
+- **用途**：安全解封裝（內含偵測與 fallback）。
+- **行為**：
+  - 先嘗試原生解封裝（若失敗，直接回傳 32B 隨機 fallback）。
+  - 使用 `poly_to_msgSecure`（hook）進行 demo/檢測比對；不一致視為 fault → 回傳 fallback。
+  - 使用雙向雜湊檢查（ct 與 ss 綁定）；若不合則回傳 fallback。
+  - **不會**回傳明確錯誤以避免 error oracle；只會回傳隨機 32B 當作 shared-key（上層驗證會失敗）。
+- **建議**：在 production path 使用此函式以降低 fault attack surface。
+
+---
+
+### `DecapsulateExt(ct, sk, pk []byte, secure bool) (ss []byte, err error)`
+- **用途**：統一入口，透過 `secure` 參數切換行為。
+  - `secure == true` → 呼叫 `DecapsulateSecure`
+  - `secure == false` → 呼叫 `DecapsulateRaw`
+- **適用場景**：benchmark、比較或需要快速切換的測試腳本。
+
+---
+
+### `DetectDecodeFault(ct []byte) error`
+- **用途**：僅執行偵測鉤子（不做完整解封裝）；發現可疑情況則回 `ErrDecodeFault`。
+- **回傳**：`nil`（若未偵測到 fault）或 `ErrDecodeFault`（偵測到 fault）。
+- **用途**：做事前檢查、診斷或 fuzz 測試。
+
+---
+
+### `ErrDecodeFault`（變數）
+- **用途**：由 `DetectDecodeFault` 回傳的錯誤標記，用於判斷偵測結果。
 
 ---
 
@@ -125,18 +178,6 @@ go run main.go --level=768 --secure=false --rounds=5000
 * `--level`：`512 | 768 | 1024`  
 * `--secure`：`true | false`（決定 `DecapsulateExt` 的路徑）  
 * `--rounds`：重複次數（取平均）
-
-**CLI 輸出範例**
-```
-執行 Kyber KEM（KeyGen → Encapsulate → Decapsulate），rounds=10000
-安全等級: Kyber1024
-是否使用 Secure 解封裝: true
-全部完成
-總耗時（含封裝等開銷）: 2.31s
-僅解封裝總耗時: 1.84s（平均每次: 184000 ns）
-Shared key 一致次數: 10000 / 10000（不一致: 0）
-Shared key (hex 前 32B): 4a9d23e8...
-```
 
 ---
 
@@ -244,4 +285,4 @@ go run main.go --level=1024 --secure=true --rounds=10000
 ---
 
 > 本專案僅供教學與研究用途。請依各相依套件之授權條款使用。  
-> Kyber KEM 實作取自 Cloudflare **CIRCL**：`github.com/cloudflare/circl`。
+> Kyber KEM 實作取自 Cloudflare **CIRCL**：`github.com/cloudflare/circl`.
